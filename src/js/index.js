@@ -10,5 +10,6 @@ window.addEventListener('load', () => {
 
   if (canvas) {
     new Three(document.querySelector('#canvas'));
+    // new Three(document.querySelector('#canvas2'));
   }
 });
