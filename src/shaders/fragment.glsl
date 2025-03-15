@@ -1,6 +1,7 @@
 varying vec2 vUv;
 uniform float time;
 uniform sampler2D uTexture;
+//uniform float progress;
 uniform vec4 resolution;
 varying vec3 vPosition;
 const float PI = 3.141592653589793238;

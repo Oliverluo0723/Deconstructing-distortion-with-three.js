@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "core-js": "^3.40.0",
+    "dat.gui": "^0.7.9",
     "three": "^0.172.0"
   },
   "devDependencies": {
@@ -67,4 +68,3 @@
     "webpack-dev-server": "^5.2.0"
   }
 }
-

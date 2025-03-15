@@ -11,6 +11,9 @@ importers:
       core-js:
         specifier: ^3.40.0
         version: 3.40.0
+      dat.gui:
+        specifier: ^0.7.9
+        version: 0.7.9
       three:
         specifier: ^0.172.0
         version: 0.172.0
@@ -1557,6 +1560,9 @@ packages:
   dargs@8.1.0:
     resolution: {integrity: sha512-wAV9QHOsNbwnWdNW2FYvE1P56wtgSbM+3SZcdGiWQILwVjACCXDCI3Ai8QlCjMDB8YK5zySiXZYBiwGmNY3lnw==}
     engines: {node: '>=12'}
+
+  dat.gui@0.7.9:
+    resolution: {integrity: sha512-sCNc1OHobc+Erc1HqiswYgHdVNpSJUlk/Hz8vzOCsER7rl+oF/4+v8GXFUyCgtXpoCX6+bnmg07DedLvBLwYKQ==}
 
   data-view-buffer@1.0.2:
     resolution: {integrity: sha512-EmKO5V3OLXh1rtK2wgXRansaK1/mtVdTUEiEI0W8RkvgT05kfxaH29PliLnpLP73yYO6142Q72QNa8Wx/A5CqQ==}
@@ -5931,6 +5937,8 @@ snapshots:
       css-tree: 2.2.1
 
   dargs@8.1.0: {}
+
+  dat.gui@0.7.9: {}
 
   data-view-buffer@1.0.2:
     dependencies:

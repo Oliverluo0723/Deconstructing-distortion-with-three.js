@@ -1,6 +1,17 @@
 import * as T from 'three';
 // eslint-disable-next-line import/no-unresolved
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { CustomPass } from './CustomPass';
+
+// 引入 dat.GUI 庫用於調試界面
+import * as dat from 'dat.gui';
+
+import { RGBShiftShader } from 'three/addons/shaders/RGBShiftShader.js';
+import { DotScreenShader } from 'three/addons/shaders/DotScreenShader.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import fragment from '../shaders/fragment.glsl';
 import vertex from '../shaders/vertex.glsl';
@@ -32,6 +43,7 @@ export default class Three {
     // 初始化時鐘和狀態
     this.clock = new T.Clock();
     this.isPlaying = true;
+    this.time = 0; // 初始化時間變量
 
     // 設置場景
     this.initScene();
@@ -53,12 +65,45 @@ export default class Three {
     
     // 設置幾何體
     this.setGeometry();
+
+    // 初始化後期處理
+    this.initPost();
+    
+    // 初始化GUI設置
+    this.setting();
     
     // 開始渲染循環
     this.render();
     
     // 添加窗口大小調整事件
     this.setResize();
+  }
+
+  initPost(){
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+
+    this.effect1 = new ShaderPass(CustomPass);
+    this.composer.addPass(this.effect1);
+
+    // 其他效果（已注釋）
+    // const effect2 = new ShaderPass(RGBShiftShader);
+    // effect2.uniforms['amount'].value = 0.0015;
+    // this.composer.addPass(effect2);
+
+    // const effect3 = new OutputPass();
+    // this.composer.addPass(effect3);
+  }
+
+  setting(){
+    // 初始化設置對象
+    this.setting = {
+      progress: 0,
+    };
+    
+    // 使用正確的 GUI 庫
+    this.gui = new dat.GUI();
+    this.gui.add(this.setting, "progress", 0, 1, 0.01);
   }
 
   /**
@@ -78,7 +123,7 @@ export default class Three {
       0.1,
       100
     );
-    this.camera.position.set(0, 0, 1);
+    this.camera.position.set(0, 0, 2);
     this.scene.add(this.camera);
   }
 
@@ -101,6 +146,12 @@ export default class Three {
    */
   initControls() {
     this.controls = new OrbitControls(this.camera, this.canvas);
+
+    this.controls.enableDamping = true; // 啟用阻尼效果，使控制更加平滑
+    this.controls.dampingFactor = 0.05; // 阻尼系數
+    this.controls.enableZoom = true;    // 允許縮放
+    this.controls.enablePan = true;     // 允許平移
+    this.controls.rotateSpeed = 2;      // 旋轉速度
   }
 
   /**
@@ -138,31 +189,45 @@ export default class Three {
    * 創建平面網格並應用著色器材質
    */
   setGeometry() {
-    // 創建平面幾何體
-    this.planeGeometry = new T.PlaneGeometry(1, 1, 128, 128);
+    // 圖 672*384 長寬比 = 1.75
+    this.planeGeometry = new T.PlaneGeometry(1.75/2, 1/2, 64, 64);
     
-    // 創建著色器材質
-    this.planeMaterial = new T.ShaderMaterial({
+    // 首先創建基本著色器材質
+    this.material = new T.ShaderMaterial({
       side: T.DoubleSide,
       // T.FrontSide：只渲染正面
       // T.BackSide：只渲染內部或背面（例如球體的內部）
-      // T.DoubleSide：當物體很薄（例如紙張、平面或薄片物體）並且需要渲染正反兩面時使用
+      // T.DoubleSide：當物體很薄（例如紙張、平面或薄片物體)
       
-      // wireframe: true,  // 線框模式
+      // wireframe: true, 
       
       fragmentShader: fragment,  // 像素著色器，處理顏色、光照等
       vertexShader: vertex,      // 頂點著色器，處理形狀、位置、變形等
       
       uniforms: {
-        time: { type: 'f', value: 0 },  // 浮點數類型，用於控制動畫或過渡的進度
+        time: { type: 'f', value: 0 },          // 浮點數類型，用於控制動畫或過渡的進度
         uTexture: { value: this.textures[0] },  // 紋理1
         texture3: { type: 't', value: this.textures[2] }  // 紋理3 (type t 表示紋理)
       }
     });
     
-    // 創建網格並添加到場景
-    this.planeMesh = new T.Mesh(this.planeGeometry, this.planeMaterial);
-    this.scene.add(this.planeMesh);
+    // 保存一個引用作為 planeMaterial 以便在渲染循環中使用
+    this.planeMaterial = this.material;
+    
+    // 創建多個網格，每個網格使用不同的紋理
+    this.meshes = [];
+
+    this.textures.forEach((t, i) => {
+      // 克隆材質以便於每個網格使用不同的紋理
+      let m = this.material.clone();
+      m.uniforms.uTexture.value = t;
+      
+      // 創建網格並添加到場景
+      let mesh = new T.Mesh(this.planeGeometry, m);
+      this.scene.add(mesh);
+      this.meshes.push(mesh);
+      mesh.position.x = i - 1;  // 水平排列網格
+    });
   }
 
   /**
@@ -170,23 +235,36 @@ export default class Three {
    * 每幀更新場景並渲染
    */
   render() {
-    // 修正渲染邏輯 - 應該在 isPlaying 為 true 時渲染
+    // 只有在 isPlaying 為 true 時才更新和渲染
     if (this.isPlaying) {
       const elapsedTime = this.clock.getElapsedTime();
       
-      // 更新著色器中的時間值
-      if (this.planeMaterial) {
-        this.planeMaterial.uniforms.time.value = elapsedTime;
+      // 更新所有材質中的時間值
+      if (this.meshes && this.meshes.length > 0) {
+        this.meshes.forEach(mesh => {
+          if (mesh.material && mesh.material.uniforms && mesh.material.uniforms.time) {
+            mesh.material.uniforms.time.value = elapsedTime;
+          }
+        });
+      }
+
+      this.time += 0.05;
+      
+      // 更新著色器中的 uniforms
+      this.effect1.uniforms['time'].value = this.time;
+      
+      // 檢查 setting 對象是否存在
+      if (this.setting) {
+        this.effect1.uniforms['progress'].value = this.setting.progress;
       }
       
-      // 渲染場景
-      this.renderer.render(this.scene, this.camera);
-      
-      // 設置背景顏色
+      // 設置背景顏色（應該在 composer.render 之前）
       this.renderer.setClearColor(0xededed, 1);  // 非幾何體背景顏色設為 #ededed，1 表示完全不透明
+      
+      // 使用 composer 進行渲染
+      this.composer.render();
     }
     
-    // 請求下一幀 (無論是否 isPlaying 都保持渲染循環)
     requestAnimationFrame(this.render.bind(this));
   }
 
@@ -217,6 +295,9 @@ export default class Three {
     // 更新渲染器
     this.renderer.setSize(this.width, this.height);
     this.renderer.setPixelRatio(Math.min(device.pixelRatio, 2));
+    
+    // 更新 composer 尺寸
+    this.composer.setSize(this.width, this.height);
   }
 
   /**
@@ -226,9 +307,9 @@ export default class Three {
     this.isPlaying = true;
   }
 
-  // /**
-  //  * 暫停動畫
-  //  */
+  /**
+   * 暫停動畫
+   */
   pause() {
     this.isPlaying = false;
   }
