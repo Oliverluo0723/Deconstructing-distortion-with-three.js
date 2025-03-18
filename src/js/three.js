@@ -44,6 +44,10 @@ export default class Three {
     this.clock = new T.Clock();
     this.isPlaying = true;
     this.time = 0; // 初始化時間變量
+    
+    // 初始化参数
+    this.progress = 0;
+    this.scale = 1; // 初始化scale参数
 
     // 設置場景
     this.initScene();
@@ -84,6 +88,7 @@ export default class Three {
     this.composer.addPass(new RenderPass(this.scene, this.camera));
 
     this.effect1 = new ShaderPass(CustomPass);
+    this.effect1.uniforms['scale'].value = this.scale; // 确保初始值被设置
     this.composer.addPass(this.effect1);
 
     // 其他效果（已注釋）
@@ -96,14 +101,27 @@ export default class Three {
   }
 
   setting(){
-    // 初始化設置對象
-    this.setting = {
+    // 创建设置对象并将其与类属性连接
+    this.settings = {
       progress: 0,
+      scale: 1,
+      updateProgress: (val) => {
+        this.progress = val;
+      },
+      updateScale: (val) => {
+        this.scale = val;
+      }
     };
     
     // 使用正確的 GUI 庫
     this.gui = new dat.GUI();
-    this.gui.add(this.setting, "progress", 0, 1, 0.01);
+    
+    // 添加GUI控制并连接回调函数
+    this.gui.add(this.settings, "progress", 0, 1, 0.01)
+      .onChange(this.settings.updateProgress);
+    
+    this.gui.add(this.settings, "scale", 0, 10, 0.01)
+      .onChange(this.settings.updateScale);
   }
 
   /**
@@ -190,7 +208,7 @@ export default class Three {
    */
   setGeometry() {
     // 圖 672*384 長寬比 = 1.75
-    this.planeGeometry = new T.PlaneGeometry(1.75/2, 1/2, 64, 64);
+    this.planeGeometry = new T.PlaneGeometry(1.75, 1, 64, 64);
     
     // 首先創建基本著色器材質
     this.material = new T.ShaderMaterial({
@@ -226,7 +244,7 @@ export default class Three {
       let mesh = new T.Mesh(this.planeGeometry, m);
       this.scene.add(mesh);
       this.meshes.push(mesh);
-      mesh.position.x = i - 1;  // 水平排列網格
+      mesh.position.x = i - 1 ;  // 水平排列網格
     });
   }
 
@@ -235,6 +253,10 @@ export default class Three {
    * 每幀更新場景並渲染
    */
   render() {
+    this.meshes.forEach((m,index) => {
+      m.position.y = -this.settings.progress;
+      m.rotation.z = this.settings.progress * Math.PI / 2;
+    })
     // 只有在 isPlaying 為 true 時才更新和渲染
     if (this.isPlaying) {
       const elapsedTime = this.clock.getElapsedTime();
@@ -248,18 +270,32 @@ export default class Three {
         });
       }
 
-      this.time += 0.05;
+      this.time += 0.01;
       
       // 更新著色器中的 uniforms
-      this.effect1.uniforms['time'].value = this.time;
+      if (this.effect1) {
+        this.effect1.uniforms['time'].value = this.time;
+        this.effect1.uniforms['progress'].value = this.progress;
+        this.effect1.uniforms['scale'].value = this.scale; // 确保scale值被正确应用
+      }
       
-      // 檢查 setting 對象是否存在
-      if (this.setting) {
-        this.effect1.uniforms['progress'].value = this.setting.progress;
+      // 检查并应用GUI设置的值
+      if (this.settings) {
+        if (this.effect1) {
+          this.effect1.uniforms['progress'].value = this.settings.progress;
+          this.effect1.uniforms['scale'].value = this.settings.scale;
+        }
       }
       
       // 設置背景顏色（應該在 composer.render 之前）
-      this.renderer.setClearColor(0xededed, 1);  // 非幾何體背景顏色設為 #ededed，1 表示完全不透明
+      // this.renderer.setClearColor(0xededed, 1);  // 非幾何體背景顏色設為 #ededed，1 表示完全不透明
+      // this.renderer.setClearColor(0x3c3c3c, 1);  // 非幾何體背景顏色設為 #3c3c3c，1 表示完全不透明
+      // 設置與 #EAE8EA 搭配的背景顏色
+      // this.renderer.setClearColor(0xB8B8B8, 1);  // 背景設為 #B8B8B8，這是一個較淺的灰色
+      this.renderer.setClearColor(0xEAE8EA, 1);  // 設置背景顏色為 #EAE8EA，完全不透明
+
+
+
       
       // 使用 composer 進行渲染
       this.composer.render();

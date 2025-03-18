@@ -19,10 +19,11 @@ const CustomPass = {
 		'tDiffuse': { value: null },
 		'time': { value: 0 },
         "progress": { value: 0 },
+		'scale': { value: 0 },
 		'tSize': { value: new Vector2( 256, 256 ) },
 		'center': { value: new Vector2( 0.5, 0.5 ) },
 		'angle': { value: 1.57 },
-		'scale': { value: 1.0 }
+		'scale': { value: 0 }
 
 	},
 
@@ -43,7 +44,7 @@ const CustomPass = {
 		uniform float angle;
 		uniform float time;
 		uniform float progress;
-		uniform float scale;
+        uniform float scale;
 		uniform vec2 tSize;
 
 		uniform sampler2D tDiffuse;
@@ -63,22 +64,24 @@ const CustomPass = {
 
 		void main() {
             vec2 newUv = vUv; 
-            // 扭曲
-            // newUv = vUv + 0.1*vec2(sin(10.*vUv.x), sin(10.*vUv.y));
 
-            vec2 centerUv = 2.*vUv - vec2(1.);
+            vec2 p = 2.*vUv - vec2(1.);
 
 
-            newUv = vUv + centerUv*vec2(1.,0.);
+            p += 0.1*cos(scale*2.*p.yx + time + vec2(2.2,3.4));
+            p += 0.1*cos(scale*2.7*p.yx + 1.4*time + vec2(2.2,1.7));
+            p += 0.1*cos(scale*5.*p.yx + 2.6*time + vec2(2.4,2.2));
+            p += 0.3*cos(scale*7.6*p.yx + 3.6*time + vec2(2.4,3.4));
+        //    p += 0.1*cos(scale*8.2*p.yx + 4.6*time + vec2(10.2,3.4));
 
-            // newUv.x = vUv.x*(1. - progress) + progress;
-            newUv.x = mix(vUv.x, length(centerUv), progress);
+
+            newUv.x = mix(vUv.x, length(p), progress);
             newUv.y = mix(vUv.y, 0., progress);
-
-
+            
 			vec4 color = texture2D( tDiffuse, newUv );
+
             gl_FragColor = color;
-            // gl_FragColor = vec4(length(centerUv), 0., 0, 1);
+            // gl_FragColor = vec4(length(p), 0., 0, 1);
 
 
 
