@@ -1,1 +1,1 @@
-I use Webpack Three JS — Template from doinel1a
+I use the Webpack Three.js template from doinel1a.
